@@ -1,7 +1,7 @@
 {
   "name": "HabitFlow – Habit Tracker",
   "short_name": "HabitFlow",
-  "description": "Dein privater Habit Tracker mit Offline-Modus und lokaler Speicherung.",
+  "description": "Dein Habit Tracker mit lokaler Speicherung, Offline-Modus und optionaler Synchronisierung.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
