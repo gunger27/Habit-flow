@@ -1,64 +1,88 @@
 # HabitFlow – Habit Tracker (PWA)
 
-Eine installierbare, offlinefähige Habit-Tracker-Web-App. Die App speichert alle Habit-Daten lokal in **IndexedDB** auf deinem Gerät. Es gibt keinen Account und keinen Server, an den deine Gewohnheiten übertragen werden.
+HabitFlow ist eine installierbare, offlinefähige Habit-Tracker-Web-App. Die App speichert Daten zuerst lokal in IndexedDB. Optional können angemeldete Nutzer ihre Habits über Supabase zwischen Geräten synchronisieren.
 
 ## Funktionen
 
 - Habits erstellen, bearbeiten und löschen
-- Frei wählbares Intervall von 1 bis 365 Tagen
-- Startdatum als Anker für den Rhythmus (z. B. alle 2 Tage ab dem gewählten Startdatum)
-- Tagesansicht der letzten sieben Tage
-- Monatskalender und Jahresübersicht je Habit
-- Aktuelle Streak, längste Streak und Erfüllungsquote
+- Intervalle von 1 bis 365 Tagen mit Startdatum als Rhythmusanker
+- Wochenübersicht mit gut bedienbaren Abhakflächen
+- Gemeinsamer Monatskalender mit Tageszahlen für erledigte, offene und geplante Habits
+- Tagesdetailansicht zum direkten Abhaken
+- Jahresübersicht der Gesamtaktivität aller Habits
+- Aktuelle und längste Streak, Statistiken und Erfüllungsquote
 - Dark und Light Mode
-- JSON-Backup exportieren und wieder importieren
-- Offline-Nutzung nach dem ersten Laden
+- JSON-Backup exportieren und importieren
+- Offline-Nutzung mit IndexedDB und Service Worker
+- Optionale Kontoanmeldung und Cloud-Synchronisierung über Supabase
 
-## App starten / installieren
+## Lokale Nutzung
 
-Eine PWA benötigt einen sicheren Kontext: **HTTPS** oder `localhost`. Öffne `index.html` nicht direkt per Doppelklick (`file://`), da Service Worker und Installation dann nicht funktionieren.
+Eine PWA benötigt HTTPS oder `localhost`. Öffne `index.html` nicht per Doppelklick (`file://`), da Service Worker und Installation dort nicht funktionieren.
 
-### Schnell lokal testen
-
-Mit installiertem Python im Projektordner:
+Mit Python im Projektordner:
 
 ```bash
 python -m http.server 8000
 ```
 
-Dann `http://localhost:8000` im Browser öffnen.
+Öffne danach `http://localhost:8000`.
 
-### Kostenlos online bereitstellen (z. B. GitHub Pages)
+## Supabase einrichten
 
-1. Erstelle ein GitHub-Repository.
-2. Lade alle Dateien aus diesem Ordner in das Repository hoch.
-3. Öffne im Repository **Settings → Pages**.
-4. Wähle **Deploy from a branch**, Branch `main`, Ordner `/ (root)`.
-5. Warte auf die veröffentlichte HTTPS-Adresse und öffne sie auf deinem Android-Handy in Chrome.
-6. Chrome-Menü (⋮) → **App installieren** oder **Zum Startbildschirm hinzufügen**.
+Die App enthält keine erfundenen Zugangsdaten. Cloud-Synchronisierung bleibt deaktiviert, bis du deine eigenen Projektwerte einträgst.
 
-Alternativ kann das Projekt auf jedem statischen HTTPS-Host bereitgestellt werden.
+1. Erstelle ein Supabase-Projekt und öffne **Project Settings → API**.
+2. Kopiere die Projekt-URL sowie den öffentlichen `anon`/publishable Key.
+3. Trage beide Werte in `supabase-config.js` ein:
+
+   ```js
+   window.HABITFLOW_SUPABASE_CONFIG = Object.freeze({
+     url: "https://DEIN-PROJEKT.supabase.co",
+     anonKey: "DEIN_OEFFENTLICHER_ANON_KEY"
+   });
+   ```
+
+4. Öffne den **SQL Editor** in Supabase und führe `supabase/schema.sql` vollständig aus. Das Schema erstellt `public.habits`, aktiviert Row Level Security, gewährt Datenbankrechte nur für `authenticated` und legt Policies an, die jede Zeile auf `auth.uid() = user_id` beschränken.
+5. Stelle unter **Authentication → Providers** sicher, dass E-Mail/Passwort-Anmeldung aktiviert ist. Wenn E-Mail-Bestätigung aktiviert ist, muss die Person den Bestätigungslink öffnen, bevor sie sich anmelden kann.
+6. Trage deine HTTPS-App-Adresse unter **Authentication → URL Configuration** als Site URL ein und ergänze sie bei den Redirect URLs. Für lokales Testen verwende zusätzlich `http://localhost:8000/**`.
+7. Lade die Dateien auf einen HTTPS-Host hoch. Für GitHub Pages muss die Pages-Veröffentlichung auf den richtigen Branch und Ordner zeigen.
+8. Öffne die App online, gehe zu **Einstellungen → Cloud-Synchronisierung** und registriere ein Konto oder melde dich an.
+
+**Sicherheit:** Im Browser darf ausschließlich der öffentliche `anon` Key stehen. Den `service_role` Key niemals in `supabase-config.js`, GitHub Pages, HTML, JavaScript oder einem anderen Client ausliefern. Der anon Key ist kein Ersatz für RLS; führe das SQL-Schema aus und prüfe die Policies im Supabase Dashboard.
+
+### Synchronisierung und Konflikte
+
+- IndexedDB bleibt der lokale Speicher. Änderungen werden lokal gespeichert, auch wenn das Gerät offline ist.
+- Bei einer Verbindung synchronisiert die App nach Änderungen, beim Wiederverbinden, beim Zurückkehren zur App und über Supabase Realtime.
+- Beim ersten Login fragt HabitFlow, ob lokale Habits ohne Konto-Zuordnung mit diesem Konto zusammengeführt werden sollen. Ablehnen lässt die lokalen Daten unverändert auf dem Gerät.
+- Habits verschiedener Geräte werden addiert. Bei gleicher Habit-ID gewinnt für Name, Intervall, Startdatum und Löschstatus die neueste Habit-Änderung.
+- Erledigt-/Offen-Markierungen werden pro Datum separat versioniert. Dadurch kann auch das Zurücknehmen eines Hakens synchronisiert werden.
+- Haben zwei Änderungen denselben Zeitstempel, entscheidet eine feste Regel auf allen Geräten gleich; bei einem Gleichstand der Tagesmarkierung gewinnt „offen“, beim Löschstatus die Löschung.
+- Löschungen sind synchronisierte Tombstones. Sie werden nicht sofort aus der Cloud entfernt, damit ein älteres Gerät eine gelöschte Habit nicht ungewollt wiederherstellt.
+- Der Status in der Kopfzeile zeigt lokal, offline, synchronisiert oder einen Fehler an.
+
+### Manuell erforderlich
+
+- Ein Supabase-Projekt erstellen und die echte URL sowie den öffentlichen anon Key in `supabase-config.js` eintragen.
+- `supabase/schema.sql` im SQL Editor ausführen.
+- E-Mail-Provider und erlaubte App-/Redirect-URLs konfigurieren.
+- Die veröffentlichte App nach dem Eintragen der Konfiguration erneut deployen.
+- Cloud-Registrierung, Anmeldung, Synchronisierung zwischen zwei Geräten und Realtime-Änderungen mit echten Testkonten prüfen.
 
 ## Daten & Backups
 
-- Automatisches Speichern: IndexedDB, lokal im Browserprofil.
-- JSON-Backup: Einstellungen (⚙) → Backup exportieren.
-- Wiederherstellen: Einstellungen → Backup importieren. Der Import **ersetzt** die aktuell gespeicherten Habits nach einer Sicherheitsabfrage.
-- Für Gerätewechsel oder vor dem Löschen von Browserdaten unbedingt ein Backup exportieren. Die App synchronisiert nicht automatisch zwischen Geräten.
+- Ohne Supabase-Konfiguration bleibt HabitFlow vollständig lokal.
+- Daten und Streak-Berechnungen werden auf Basis geplanter Tage durchgeführt.
+- JSON-Backup: **Einstellungen → Backup exportieren**. Import ersetzt die sichtbaren Habits nach Sicherheitsabfrage; bei Cloud-Anmeldung werden ersetzte Habits als Löschungen synchronisiert.
+- Vor dem Löschen von Browserdaten oder Gerätewechsel ein Backup exportieren.
 
-## Streak-Logik
+## Dateien
 
-Ein Habit ist an Tagen geplant, deren Abstand zum Startdatum ein Vielfaches des eingestellten Intervalls ist. Bei Intervall 2 und Start am Montag sind also Montag, Mittwoch, Freitag usw. geplant.
-
-Die aktuelle Streak zählt rückwärts nur geplante und erledigte Termine. Ein heute geplanter, aber noch nicht abgehakter Termin unterbricht die Streak erst ab dem Folgetag. Nicht geplante Tage werden ignoriert. Die längste Streak zählt die längste Folge erledigter geplanter Termine seit Beginn.
-
-Die Erfüllungsquote ist `erledigte geplante Termine / alle geplanten Termine bis heute`. Zukünftige Termine zählen nicht in die Quote.
-
-## Projektdateien
-
-- `index.html` – App-Struktur
-- `styles.css` – responsives Design, Dark/Light Mode
-- `app.js` – App-Logik, IndexedDB, Kalender, Streaks, Backup
-- `manifest.webmanifest` – PWA-Metadaten
-- `sw.js` – Offline-Cache / Service Worker
-- `icon.svg` – App-Symbol
+- `index.html` – App-Struktur und Authentifizierungsformular
+- `styles.css`, `feature.css` – Layout, Darstellung und mobile Bedienung
+- `app.js` – IndexedDB, App-Logik, Authentifizierung, Synchronisierung, Kalender und Statistiken
+- `sync-core.js` – deterministische Konfliktauflösung
+- `supabase-config.js` – Platzhalter für Projekt-URL und öffentlichen Key
+- `supabase/schema.sql` – Tabelle, Rechte, RLS und Realtime-Veröffentlichung
+- `sw.js` – Offline-Cache und Cache-Version
