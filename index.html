@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111318">
+  <meta name="description" content="Dein persönlicher Habit Tracker – offline, privat und mit dauerhafter Speicherung.">
+  <title>HabitFlow – Habit Tracker</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="HabitFlow Startseite">
+        <span class="brand-mark">✳</span><span>habit<span class="brand-light">flow</span></span>
+      </a>
+      <div class="top-actions">
+        <span class="save-indicator" id="saveIndicator"><i></i> Lokal gespeichert</span>
+        <button class="icon-button" id="themeToggle" title="Darstellung wechseln" aria-label="Darstellung wechseln">☼</button>
+        <button class="icon-button" id="settingsButton" title="Backup und Einstellungen" aria-label="Backup und Einstellungen">⚙</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="welcome">
+        <div>
+          <p class="eyebrow" id="todayLabel">DEIN TAG</p>
+          <h1>Mach Fortschritt.<br><span class="muted-heading">Jeden Tag ein bisschen.</span></h1>
+          <p class="subheading">Kleine Gewohnheiten. Große Veränderungen.</p>
+        </div>
+        <div class="date-chip"><span class="date-dot"></span><span id="todayDate"></span></div>
+      </section>
+
+      <section class="summary-grid" aria-label="Übersicht">
+        <article class="summary-card">
+          <div class="summary-icon violet">✳</div><div class="summary-label">Aktive Habits</div>
+          <div class="summary-value" id="totalHabits">0</div><div class="summary-foot">Deine Routinen</div>
+        </article>
+        <article class="summary-card">
+          <div class="summary-icon green">✓</div><div class="summary-label">Heute erledigt</div>
+          <div class="summary-value"><span id="doneToday">0</span><small id="plannedToday"> / 0</small></div><div class="summary-foot" id="todayProgress">Gut gemacht – weiter so!</div>
+        </article>
+        <article class="summary-card">
+          <div class="summary-icon orange">↗</div><div class="summary-label">Laufende Streaks</div>
+          <div class="summary-value" id="activeStreaks">0</div><div class="summary-foot">Geplante Tage in Folge</div>
+        </article>
+      </section>
+
+      <nav class="tabs" aria-label="Hauptnavigation">
+        <button class="tab active" data-tab="habits">☷ <span>Habits</span></button>
+        <button class="tab" data-tab="calendar">▦ <span>Kalender</span></button>
+        <button class="tab" data-tab="stats">◫ <span>Statistiken</span></button>
+      </nav>
+
+      <section class="view active" id="habitsView">
+        <div class="section-heading">
+          <div><p class="eyebrow">DEINE ROUTINEN</p><h2>Habits</h2></div>
+          <button class="primary-button" id="addHabitButton">＋ Neues Habit</button>
+        </div>
+        <div id="habitList" class="habit-list"></div>
+        <div class="empty-state" id="emptyHabits" hidden>
+          <div class="empty-icon">✳</div><h3>Hier beginnt deine Routine.</h3>
+          <p>Erstelle dein erstes Habit und hake es ab, sobald du es erledigt hast.</p>
+          <button class="primary-button" id="emptyAddButton">＋ Erstes Habit erstellen</button>
+        </div>
+      </section>
+
+      <section class="view" id="calendarView">
+        <div class="section-heading">
+          <div><p class="eyebrow">DEINE KONSISTENZ</p><h2>Kalender</h2></div>
+          <select id="calendarHabitSelect" class="select-control" aria-label="Habit auswählen"></select>
+        </div>
+        <div class="panel calendar-panel">
+          <div class="calendar-toolbar">
+            <button class="icon-button" id="prevMonth" aria-label="Vorheriger Monat">‹</button>
+            <h3 id="calendarMonth"></h3>
+            <button class="icon-button" id="nextMonth" aria-label="Nächster Monat">›</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+          <div class="legend">
+            <span><i class="legend-dot completed"></i> Erledigt</span>
+            <span><i class="legend-dot missed"></i> Offen / verpasst</span>
+            <span><i class="legend-dot rest"></i> Nicht geplant</span>
+            <span><i class="legend-dot future"></i> Zukunft</span>
+          </div>
+        </div>
+        <div class="panel year-panel">
+          <div class="panel-heading"><div><p class="eyebrow">JAHRESÜBERSICHT</p><h3 id="yearTitle"></h3></div><span class="muted small">Deine erledigten Tage</span></div>
+          <div id="yearGrid" class="year-grid"></div>
+        </div>
+      </section>
+
+      <section class="view" id="statsView">
+        <div class="section-heading"><div><p class="eyebrow">DATEN STATT BAUCHGEFÜHL</p><h2>Statistiken</h2></div></div>
+        <div class="stats-overview" id="statsOverview"></div>
+        <div class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">DEINE ENTWICKLUNG</p><h3>Habit-Übersicht</h3></div></div>
+          <div id="statsList" class="stats-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>✳ habitflow</span><span>Privat. Lokal. Deine Gewohnheiten.</span></footer>
+  </div>
+
+  <dialog id="habitDialog" class="modal">
+    <form id="habitForm" method="dialog">
+      <div class="modal-heading"><div><p class="eyebrow">NEUE ROUTINE</p><h2 id="habitDialogTitle">Habit erstellen</h2></div><button type="button" class="close-button" data-close="habitDialog">×</button></div>
+      <input type="hidden" id="habitId">
+      <label for="habitName">Name des Habits</label>
+      <input id="habitName" class="text-input" maxlength="60" placeholder="z. B. Zahnseide benutzen" required>
+      <label for="habitInterval">Wie oft möchtest du es machen?</label>
+      <div class="interval-row"><span>Alle</span><input id="habitInterval" class="number-input" type="number" min="1" max="365" value="1" required><span>Tage</span></div>
+      <p class="field-hint">Beispiele: 1 = täglich · 2 = jeden zweiten Tag · 7 = einmal pro Woche.</p>
+      <label for="habitStart">Erster geplanter Tag</label>
+      <input id="habitStart" class="text-input" type="date" required>
+      <div class="modal-actions"><button type="button" class="secondary-button" data-close="habitDialog">Abbrechen</button><button class="primary-button" type="submit">Speichern</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="modal">
+    <div class="modal-heading"><div><p class="eyebrow">DEINE DATEN</p><h2>Backup & Einstellungen</h2></div><button class="close-button" data-close="settingsDialog">×</button></div>
+    <p class="settings-copy">Deine Habits werden automatisch in einer lokalen Datenbank auf diesem Gerät gespeichert. Es wird kein Konto benötigt und deine Daten werden nicht an einen Server übertragen.</p>
+    <div class="backup-actions">
+      <button class="backup-button" id="exportButton"><span>↓</span><div><b>Backup exportieren</b><small>Alle Habits und Einträge als JSON-Datei sichern</small></div></button>
+      <button class="backup-button" id="importButton"><span>↑</span><div><b>Backup importieren</b><small>Ein vorhandenes HabitFlow-Backup wiederherstellen</small></div></button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="settings-note"><b>Wichtig:</b> Lokale Daten bleiben normalerweise auf diesem Browser und Gerät. Bei Gerätewechsel, Browserdaten-Löschung oder Deinstallation kann ein Backup nötig sein. Exportiere regelmäßig eine Sicherung.</div>
+    <div class="modal-actions"><button class="primary-button" data-close="settingsDialog">Fertig</button></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
