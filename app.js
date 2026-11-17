@@ -20,7 +20,8 @@ const fmtDate = d => new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '
 const fmtMonth = d => new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(d);
 const fmtShort = d => new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(d).replace('.', '');
 const SyncCore = window.HabitFlowSyncCore;
-let db, toastTimer, cloud, realtimeChannel, syncTimer, syncInProgress = false, syncRequested = false, supabaseLoadPromise;
+const AuthCore = window.HabitFlowAuthCore;
+let db, toastTimer, cloud, realtimeChannel, syncTimer, syncInProgress = false, syncRequested = false, supabaseLoadPromise, authBusy = false;
 let syncState = 'local';
 
 function openDB() {
@@ -96,6 +97,13 @@ function stableJSON(value) {
   return JSON.stringify(value);
 }
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 3200); }
+function setAuthMessage(message = '', type = 'info') {
+  const el = $('authMessage');
+  if (!el) return;
+  el.textContent = message;
+  el.className = `auth-message ${type}`;
+  el.hidden = !message;
+}
 function setTheme(theme) { state.theme = theme; document.documentElement.dataset.theme = theme; localStorage.setItem('habitflow-theme', theme); $('themeToggle').textContent = theme === 'dark' ? '☼' : '☾'; }
 function setSyncStatus(status, message) {
   syncState = status;
@@ -369,31 +377,58 @@ function renderAuthState() {
   const config = window.HABITFLOW_SUPABASE_CONFIG || {};
   const hasConfig = !!(config.url && config.anonKey), authState = $('authState'), help = $('syncHelp');
   if (!hasConfig) {
-    authState.textContent = 'Nicht eingerichtet'; help.textContent = 'Füge Projekt-URL und öffentlichen Anon Key aus Supabase in supabase-config.js ein. Der Service Role Key gehört niemals ins Frontend.';
+    authState.textContent = 'Cloud nicht eingerichtet'; authState.dataset.state = 'setup'; help.textContent = 'Die Cloud wurde vom Betreiber noch nicht eingerichtet. Deine Habits bleiben auf diesem Gerät gespeichert.';
     $('authEmail').disabled = $('authPassword').disabled = $('signInButton').disabled = $('signUpButton').disabled = true; $('signOutButton').hidden = true;
     setSyncStatus('setup'); return;
   }
   if (!cloud) {
-    authState.textContent = 'Cloud nicht verfügbar'; help.textContent = navigator.onLine ? 'Supabase konnte gerade nicht geladen werden. Die App speichert lokal und versucht es erneut, sobald die Verbindung wiederhergestellt ist.' : 'Offline gespeichert. Die Cloud-Anmeldung ist verfügbar, sobald du wieder online bist.';
+    authState.textContent = 'Cloud nicht verfügbar'; authState.dataset.state = 'offline'; help.textContent = navigator.onLine ? 'Der Cloud-Dienst konnte nicht geladen werden. Deine Habits bleiben lokal gespeichert. Prüfe die Verbindung und lade die App erneut.' : 'Du bist offline. Die Anmeldung und Synchronisierung sind wieder verfügbar, sobald du online bist.';
     $('authEmail').disabled = $('authPassword').disabled = $('signInButton').disabled = $('signUpButton').disabled = true; $('signOutButton').hidden = true; return;
   }
-  $('authEmail').disabled = $('authPassword').disabled = $('signInButton').disabled = $('signUpButton').disabled = !!state.user;
+  $('authEmail').disabled = $('authPassword').disabled = !!state.user || authBusy;
+  $('signInButton').disabled = $('signUpButton').disabled = !!state.user || authBusy;
   $('signOutButton').hidden = !state.user;
-  if (state.user) { authState.textContent = `Angemeldet: ${state.user.email || 'Konto'}`; help.textContent = 'Lokale Änderungen werden automatisch synchronisiert, sobald eine Internetverbindung besteht.'; }
-  else { authState.textContent = 'Nicht angemeldet'; help.textContent = 'Melde dich an oder erstelle ein Konto. Ohne Anmeldung bleibt die App lokal nutzbar.'; }
+  if (authBusy) { authState.textContent = 'Bitte warten …'; authState.dataset.state = 'pending'; help.textContent = 'Deine Anfrage wird verarbeitet.'; }
+  else if (state.user) { authState.textContent = `Angemeldet als ${state.user.email || 'HabitFlow-Konto'}`; authState.dataset.state = 'signed-in'; help.textContent = 'Dieses Gerät ist mit deinem Konto verbunden. Deine Änderungen werden bei bestehender Internetverbindung automatisch synchronisiert.'; }
+  else { authState.textContent = 'Nicht angemeldet'; authState.dataset.state = 'signed-out'; help.textContent = 'Erstelle ein Konto oder melde dich an. Verwende auf allen Geräten dieselbe E-Mail-Adresse und dasselbe Passwort.'; }
 }
 async function signIn() {
-  const email = $('authEmail').value.trim(), password = $('authPassword').value;
-  if (!email || !password) { toast('Bitte E-Mail und Passwort eingeben.'); return; }
-  const { error } = await cloud.auth.signInWithPassword({ email, password }); if (error) toast(error.message); else { $('authPassword').value = ''; toast('Anmeldung erfolgreich'); }
+  const emailInput = $('authEmail'), passwordInput = $('authPassword');
+  const email = emailInput.value.trim(), password = passwordInput.value;
+  if (!emailInput.checkValidity()) { emailInput.reportValidity(); setAuthMessage('Bitte gib eine gültige E-Mail-Adresse ein.', 'error'); return; }
+  if (!password) { setAuthMessage('Bitte gib dein Passwort ein.', 'error'); passwordInput.focus(); return; }
+  authBusy = true; renderAuthState(); setAuthMessage('Anmeldung läuft …', 'info');
+  try {
+    const { error } = await cloud.auth.signInWithPassword({ email, password });
+    if (error) setAuthMessage(AuthCore.authErrorMessage(error, 'signin'), 'error');
+    else { passwordInput.value = ''; setAuthMessage('Anmeldung erfolgreich. Deine Kontodaten werden geladen.', 'success'); }
+  } catch (error) { setAuthMessage(AuthCore.authErrorMessage(error, 'signin'), 'error'); }
+  finally { authBusy = false; renderAuthState(); }
 }
 async function signUp() {
-  const email = $('authEmail').value.trim(), password = $('authPassword').value;
-  if (!email || password.length < 6) { toast('E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.'); return; }
-  const { data, error } = await cloud.auth.signUp({ email, password });
-  if (error) toast(error.message); else if (!data.session) toast('Konto erstellt. Prüfe deine E-Mail und bestätige die Anmeldung.'); else toast('Konto erstellt und angemeldet.');
+  const emailInput = $('authEmail'), passwordInput = $('authPassword');
+  const email = emailInput.value.trim(), password = passwordInput.value;
+  if (!emailInput.checkValidity()) { emailInput.reportValidity(); setAuthMessage('Bitte gib eine gültige E-Mail-Adresse ein.', 'error'); return; }
+  const passwordError = AuthCore.validateNewPassword(password);
+  if (passwordError) { setAuthMessage(passwordError, 'error'); passwordInput.focus(); return; }
+  authBusy = true; renderAuthState(); setAuthMessage('Konto wird erstellt …', 'info');
+  try {
+    const { data, error } = await cloud.auth.signUp({ email, password });
+    if (error) setAuthMessage(AuthCore.authErrorMessage(error, 'signup'), 'error');
+    else if (!data.session) {
+      passwordInput.value = '';
+      const result = AuthCore.signupResultMessage(data.session);
+      setAuthMessage(result.text, result.type);
+    } else { passwordInput.value = ''; const result = AuthCore.signupResultMessage(data.session); setAuthMessage(result.text, result.type); }
+  } catch (error) { setAuthMessage(AuthCore.authErrorMessage(error, 'signup'), 'error'); }
+  finally { authBusy = false; renderAuthState(); }
 }
-async function signOut() { if (!cloud) return; const { error } = await cloud.auth.signOut(); if (error) toast(error.message); else toast('Abgemeldet. Die lokalen Kontodaten bleiben auf diesem Gerät gespeichert.'); }
+async function signOut() {
+  if (!cloud) return;
+  const { error } = await cloud.auth.signOut();
+  if (error) setAuthMessage('Abmelden war gerade nicht möglich. Bitte versuche es erneut.', 'error');
+  else setAuthMessage('Du bist abgemeldet. Die lokalen Kontodaten bleiben auf diesem Gerät gespeichert.', 'success');
+}
 async function initCloud() {
   const config = window.HABITFLOW_SUPABASE_CONFIG || {};
   if (!config.url || !config.anonKey) { cloud = null; setSyncStatus('setup'); renderAuthState(); return; }
@@ -421,9 +456,10 @@ function bind() {
   $('nextMonth').addEventListener('click', () => { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1, 12); state.selectedDate = key(state.month); renderCalendar(); });
   $('exportButton').addEventListener('click', exportBackup); $('importButton').addEventListener('click', () => $('importFile').click());
   $('importFile').addEventListener('change', e => { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; });
-  $('signInButton').addEventListener('click', () => signIn().catch(e => toast(e.message)));
-  $('signUpButton').addEventListener('click', () => signUp().catch(e => toast(e.message)));
-  $('signOutButton').addEventListener('click', () => signOut().catch(e => toast(e.message)));
+  $('signInButton').addEventListener('click', () => signIn().catch(() => setAuthMessage('Anmeldung nicht möglich. Prüfe deine Verbindung und versuche es erneut.', 'error')));
+  $('signUpButton').addEventListener('click', () => signUp().catch(() => setAuthMessage('Konto konnte nicht erstellt werden. Prüfe deine Verbindung und versuche es erneut.', 'error')));
+  $('signOutButton').addEventListener('click', () => signOut().catch(() => setAuthMessage('Abmelden nicht möglich. Bitte versuche es erneut.', 'error')));
+  $('authForm').addEventListener('submit', e => { e.preventDefault(); signIn().catch(() => setAuthMessage('Anmeldung nicht möglich. Prüfe deine Verbindung und versuche es erneut.', 'error')); });
   window.addEventListener('online', () => { if (!cloud) initCloud(); else scheduleSync(200); }); window.addEventListener('offline', () => { if (state.user) setSyncStatus('offline'); });
   window.addEventListener('focus', () => scheduleSync(200)); document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleSync(200); });
 }
@@ -437,3 +473,4 @@ async function init() {
 }
 if ('serviceWorker' in navigator && location.protocol !== 'file:') window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 init();
+

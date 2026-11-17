@@ -59,6 +59,8 @@ Die Datei enthält absichtlich keine Zugangsdaten. Im Browser darf nur der öffe
 3. Erlaube beim ersten Login auf einem Gerät den Import vorhandener lokaler Habits, wenn du sie mit diesem Konto zusammenführen möchtest. Lehnst du ab, bleiben sie lokal auf diesem Gerät.
 4. Melde dich auf weiteren Geräten mit **demselben HabitFlow-Konto** an. Die Habits werden automatisch synchronisiert; bei Konflikten gewinnt die jeweils neuere Änderung.
 
+Für neue Konten verlangt die App ein Passwort mit mindestens 8 Zeichen und mindestens einer Zahl. Stelle unter Supabase **Authentication → Settings** dieselbe Mindestlänge und Zahlenanforderung ein, damit die Regel auch serverseitig gilt. Bei aktivierter E-Mail-Bestätigung kann Supabase aus Datenschutzgründen eine bereits registrierte Adresse absichtlich wie eine neue behandeln. Die App zeigt dann einen allgemeinen Hinweis: Wenn du schon ein Konto hast, melde dich an; sonst bestätige die E-Mail. Wenn die Registrierung bei deaktivierter Bestätigung ausdrücklich mit „already registered“ abgelehnt wird, zeigt HabitFlow an, dass du dich anmelden sollst.
+
 Wenn der Hinweis in den Einstellungen sagt, dass die Cloud noch nicht eingerichtet wurde, muss sich der App-Betreiber darum kümmern. Nutzer können diesen Schritt nicht durch ein eigenes Supabase-Konto ersetzen.
 
 ### Synchronisierung und Konflikte
@@ -89,6 +91,7 @@ Ohne echte Projektwerte kann die Cloud-Verbindung nicht live getestet werden. De
 - `styles.css`, `feature.css` – Layout, Darstellung und mobile Bedienung
 - `app.js` – IndexedDB, App-Logik, Authentifizierung, Synchronisierung, Kalender und Statistiken
 - `sync-core.js` – deterministische Konfliktauflösung
+- `auth-core.js` – Passwortprüfung und verständliche Authentifizierungsmeldungen
 - `supabase-config.js` – Platzhalter für Projekt-URL und öffentlichen Key
 - `supabase/schema.sql` – Tabelle, Rechte, RLS und Realtime-Veröffentlichung
 - `sw.js` – Offline-Cache und Cache-Version

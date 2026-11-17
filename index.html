@@ -132,9 +132,11 @@
         <label for="authEmail">E-Mail</label>
         <input id="authEmail" class="text-input" type="email" autocomplete="email" required>
         <label for="authPassword">Passwort</label>
-        <input id="authPassword" class="text-input" type="password" autocomplete="current-password" minlength="6" required>
+        <input id="authPassword" class="text-input" type="password" autocomplete="current-password" minlength="8" aria-describedby="authPasswordHint" required>
+        <small class="field-hint" id="authPasswordHint">Für ein neues Konto: mindestens 8 Zeichen, darunter mindestens eine Zahl. Bei der Anmeldung gilt dein bestehendes Passwort.</small>
         <div class="auth-actions"><button class="secondary-button" id="signInButton" type="button">Anmelden</button><button class="primary-button" id="signUpButton" type="button">Konto erstellen</button><button class="secondary-button" id="signOutButton" type="button" hidden>Abmelden</button></div>
       </form>
+      <p id="authMessage" class="auth-message" role="status" aria-live="polite" hidden></p>
     </section>
     <div class="backup-actions">
       <button class="backup-button" id="exportButton"><span>↓</span><div><b>Backup exportieren</b><small>Alle Habits und Einträge als JSON-Datei sichern</small></div></button>
@@ -149,6 +151,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js"></script>
   <script src="./sync-core.js"></script>
+  <script src="./auth-core.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
