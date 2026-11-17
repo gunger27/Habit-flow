@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 9798)
-Total output lines: 486
-
 'use strict';
 
 const DB_NAME = 'habitflow-db';
@@ -23,6 +20,7 @@ const fmtDate = d => new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '
 const fmtMonth = d => new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(d);
 const fmtShort = d => new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(d).replace('.', '');
 const SyncCore = window.HabitFlowSyncCore;
+const AuthCore = window.HabitFlowAuthCore;
 let db, toastTimer, cloud, realtimeChannel, syncTimer, syncInProgress = false, syncRequested = false, supabaseLoadPromise, authBusy = false;
 let syncState = 'local';
 
@@ -105,18 +103,6 @@ function setAuthMessage(message = '', type = 'info') {
   el.textContent = message;
   el.className = `auth-message ${type}`;
   el.hidden = !message;
-}
-function authErrorMessage(error, action) {
-  const code = String(error?.code || '').toLowerCase();
-  const message = String(error?.message || '').toLowerCase();
-  if (/user_already_exists|already registered|already exists/.test(`${code} ${message}`)) return 'Für diese E-Mail-Adresse gibt es bereits ein Konto. Wähle „Anmelden“.';
-  if (/invalid login credentials|invalid_credentials/.test(`${code} ${message}`)) return 'Anmeldung fehlgeschlagen. Prüfe E-Mail und Passwort. Falls du noch kein Konto hast, wähle „Konto erstellen“.';
-  if (/rate limit|too many requests/.test(`${code} ${message}`)) return 'Zu viele Versuche. Warte kurz und versuche es dann erneut.';
-  if (/invalid email|email.*invalid/.test(message)) return 'Bitte prüfe die eingegebene E-Mail-Adresse.';
-  if (/password.*(weak|short|least|characters)/.test(message)) return 'Das Passwort erfüllt die Sicherheitsregeln nicht. Verwende mindestens 8 Zeichen und mindestens eine Zahl.';
-  return action === 'signup'
-    ? 'Das Konto konnte gerade nicht erstellt werden. Prüfe deine Internetverbindung und versuche es erneut.'
-    : 'Die Anmeldung war gerade nicht möglich. Prüfe deine Internetverbindung und deine Zugangsdaten.';
 }
 function setTheme(theme) { state.theme = theme; document.documentElement.dataset.theme = theme; localStorage.setItem('habitflow-theme', theme); $('themeToggle').textContent = theme === 'dark' ? '☼' : '☾'; }
 function setSyncStatus(status, message) {
@@ -231,7 +217,44 @@ function renderDayDetail() {
     list.appendChild(row);
   }
   detail.appendChild(list);
-  list.querySelectorAll('[data-detail-habit]').forEach(b => b.addEventListener('click', () => toggleCompletion(b.dataset.detailHabit, state.se…798 tokens truncated…async function saveHabit(e) {
+  list.querySelectorAll('[data-detail-habit]').forEach(b => b.addEventListener('click', () => toggleCompletion(b.dataset.detailHabit, state.selectedDate)));
+}
+function renderYear() {
+  const grid = $('yearGrid'); grid.innerHTML = ''; const year = today().getFullYear();
+  const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  for (let m = 0; m < 12; m++) {
+    const wrap = document.createElement('div'); wrap.className = 'year-month-wrap';
+    wrap.innerHTML = `<div class="year-month-label">${monthNames[m]}</div>`;
+    const cells = document.createElement('div'); cells.className = 'year-month';
+    const first = new Date(year, m, 1, 12), offset = (first.getDay() + 6) % 7;
+    for (let i = 0; i < offset; i++) { const e = document.createElement('i'); e.className = 'year-cell spacer'; cells.appendChild(e); }
+    const len = new Date(year, m + 1, 0).getDate();
+    for (let n = 1; n <= len; n++) {
+      const d = new Date(year, m, n, 12), totals = dayTotals(d), e = document.createElement('i'); e.className = 'year-cell';
+      if (d > today()) e.classList.add('future');
+      else if (!totals.planned) e.classList.add('inactive');
+      else if (totals.done === 0) e.classList.add('missed');
+      else e.classList.add(`level-${Math.min(4, Math.ceil((totals.done / totals.planned) * 4))}`);
+      e.title = `${key(d)} · ${totals.done} erledigt · ${totals.open} offen · ${totals.planned} geplant`;
+      cells.appendChild(e);
+    }
+    wrap.appendChild(cells); grid.appendChild(wrap);
+  }
+}
+function renderStats() {
+  const habits = state.habits, all = habits.reduce((a, h) => { const r = rate(h); a.done += r.done; a.total += r.total; return a; }, { done: 0, total: 0 });
+  const pct = all.total ? Math.round(all.done / all.total * 100) : 0, longest = habits.reduce((m, h) => Math.max(m, longestStreak(h)), 0);
+  $('statsOverview').innerHTML = `<div class="stat-tile"><span class="stat-label">Gesamte Erfüllungsquote</span><strong>${pct}%</strong></div><div class="stat-tile"><span class="stat-label">Erledigte Einheiten</span><strong>${all.done}</strong></div><div class="stat-tile"><span class="stat-label">Längste Streak</span><strong>${longest}</strong></div>`;
+  const list = $('statsList'); list.innerHTML = '';
+  if (!habits.length) { list.innerHTML = '<p class="muted">Noch keine Daten. Füge ein Habit hinzu.</p>'; return; }
+  habits.forEach(h => { const r = rate(h), row = document.createElement('div'); row.className = 'stats-row'; row.innerHTML = `<div class="stats-habit">${escapeHTML(h.name)}<div class="muted small">Aktuell: ${currentStreak(h)} · Rekord: ${longestStreak(h)}</div></div><div class="progress-track"><div class="progress-fill" style="width:${r.percent}%"></div></div><div class="stats-number">${r.percent}%</div><div class="stats-number">${r.done}/${r.total}</div>`; list.appendChild(row); });
+}
+function openHabit(id = null) {
+  const h = id ? state.habits.find(x => x.id === id) : null; $('habitForm').reset(); $('habitId').value = h ? h.id : '';
+  $('habitDialogTitle').textContent = h ? 'Habit bearbeiten' : 'Habit erstellen'; $('habitName').value = h ? h.name : '';
+  $('habitInterval').value = h ? h.intervalDays : 1; $('habitStart').value = h ? h.startDate : key(today()); $('habitDialog').showModal(); $('habitName').focus();
+}
+async function saveHabit(e) {
   e.preventDefault(); const id = $('habitId').value, name = $('habitName').value.trim();
   const intervalDays = Number($('habitInterval').value), startDate = $('habitStart').value;
   if (!name || !startDate || !Number.isInteger(intervalDays) || intervalDays < 1 || intervalDays > 365) { toast('Bitte überprüfe deine Eingaben.'); return; }
@@ -377,26 +400,27 @@ async function signIn() {
   authBusy = true; renderAuthState(); setAuthMessage('Anmeldung läuft …', 'info');
   try {
     const { error } = await cloud.auth.signInWithPassword({ email, password });
-    if (error) setAuthMessage(authErrorMessage(error, 'signin'), 'error');
+    if (error) setAuthMessage(AuthCore.authErrorMessage(error, 'signin'), 'error');
     else { passwordInput.value = ''; setAuthMessage('Anmeldung erfolgreich. Deine Kontodaten werden geladen.', 'success'); }
-  } catch (error) { setAuthMessage(authErrorMessage(error, 'signin'), 'error'); }
+  } catch (error) { setAuthMessage(AuthCore.authErrorMessage(error, 'signin'), 'error'); }
   finally { authBusy = false; renderAuthState(); }
 }
 async function signUp() {
   const emailInput = $('authEmail'), passwordInput = $('authPassword');
   const email = emailInput.value.trim(), password = passwordInput.value;
   if (!emailInput.checkValidity()) { emailInput.reportValidity(); setAuthMessage('Bitte gib eine gültige E-Mail-Adresse ein.', 'error'); return; }
-  if (password.length < 8) { setAuthMessage('Das Passwort muss mindestens 8 Zeichen lang sein.', 'error'); passwordInput.focus(); return; }
-  if (!/\d/.test(password)) { setAuthMessage('Das Passwort muss mindestens eine Zahl enthalten.', 'error'); passwordInput.focus(); return; }
+  const passwordError = AuthCore.validateNewPassword(password);
+  if (passwordError) { setAuthMessage(passwordError, 'error'); passwordInput.focus(); return; }
   authBusy = true; renderAuthState(); setAuthMessage('Konto wird erstellt …', 'info');
   try {
     const { data, error } = await cloud.auth.signUp({ email, password });
-    if (error) setAuthMessage(authErrorMessage(error, 'signup'), 'error');
+    if (error) setAuthMessage(AuthCore.authErrorMessage(error, 'signup'), 'error');
     else if (!data.session) {
       passwordInput.value = '';
-      setAuthMessage('Wenn diese E-Mail noch nicht registriert ist, wurde ein Bestätigungslink versendet. Prüfe dein Postfach. Falls du bereits ein Konto hast, wähle „Anmelden“.', 'success');
-    } else { passwordInput.value = ''; setAuthMessage('Konto erstellt und angemeldet. Deine lokalen Habits werden jetzt synchronisiert.', 'success'); }
-  } catch (error) { setAuthMessage(authErrorMessage(error, 'signup'), 'error'); }
+      const result = AuthCore.signupResultMessage(data.session);
+      setAuthMessage(result.text, result.type);
+    } else { passwordInput.value = ''; const result = AuthCore.signupResultMessage(data.session); setAuthMessage(result.text, result.type); }
+  } catch (error) { setAuthMessage(AuthCore.authErrorMessage(error, 'signup'), 'error'); }
   finally { authBusy = false; renderAuthState(); }
 }
 async function signOut() {
