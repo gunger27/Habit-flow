@@ -113,6 +113,18 @@
       <input type="hidden" id="habitId">
       <label for="habitName">Name des Habits</label>
       <input id="habitName" class="text-input" maxlength="60" placeholder="z. B. Zahnseide benutzen" required>
+      <label for="habitTrackingType">Wie möchtest du es erfassen?</label>
+      <select id="habitTrackingType" class="text-input">
+        <option value="checkbox">Einfach abhaken</option>
+        <option value="quantity">Menge erfassen</option>
+      </select>
+      <div id="quantityHabitFields" class="quantity-habit-fields" hidden>
+        <label for="habitUnit">Einheit</label>
+        <input id="habitUnit" class="text-input" maxlength="24" placeholder="z. B. Wiederholungen, km, Seiten">
+        <label for="habitDailyTarget">Tagesziel (optional)</label>
+        <input id="habitDailyTarget" class="text-input" type="number" min="0.01" step="any" inputmode="decimal" placeholder="z. B. 10">
+        <p class="field-hint">Ohne Ziel gilt ein Tag mit einem Wert über 0 als erledigt. Mit Ziel zählt er ab dem Zielwert als erledigt; Teilwerte bleiben gespeichert.</p>
+      </div>
       <label for="habitInterval">Wie oft möchtest du es machen?</label>
       <div class="interval-row"><span>Alle</span><input id="habitInterval" class="number-input" type="number" min="1" max="365" value="1" required><span>Tage</span></div>
       <p class="field-hint">Beispiele: 1 = täglich · 2 = jeden zweiten Tag · 7 = einmal pro Woche.</p>
@@ -120,6 +132,19 @@
       <input id="habitStart" class="text-input" type="date" required>
       <div class="modal-actions"><button type="button" class="secondary-button" data-close="habitDialog">Abbrechen</button><button class="primary-button" type="submit">Speichern</button></div>
     </form>
+  </dialog>
+
+  <dialog id="quantityDialog" class="modal quantity-dialog" aria-labelledby="quantityDialogTitle">
+    <div class="modal-heading"><div><p class="eyebrow">MESSWERTE</p><h2 id="quantityDialogTitle">Verlauf</h2></div><button type="button" class="close-button" data-close="quantityDialog" aria-label="Verlauf schließen">×</button></div>
+    <div class="quantity-periods" role="group" aria-label="Zeitraum auswählen">
+      <button type="button" class="secondary-button active" data-period="30" aria-pressed="true">30 Tage</button>
+      <button type="button" class="secondary-button" data-period="90" aria-pressed="false">90 Tage</button>
+      <button type="button" class="secondary-button" data-period="365" aria-pressed="false">Jahr</button>
+    </div>
+    <p id="quantityPeriodLabel" class="field-hint"></p>
+    <div id="quantitySummary" class="quantity-summary" aria-live="polite"></div>
+    <figure id="quantityChart" class="quantity-chart"></figure>
+    <div id="quantityDataTable" class="quantity-data-table"></div>
   </dialog>
 
   <dialog id="settingsDialog" class="modal">
