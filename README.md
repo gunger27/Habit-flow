@@ -28,13 +28,15 @@ python -m http.server 8000
 
 Öffne danach `http://localhost:8000`.
 
-## Supabase einrichten
+## Cloud-Synchronisierung einrichten
 
-Die App enthält keine erfundenen Zugangsdaten. Cloud-Synchronisierung bleibt deaktiviert, bis du deine eigenen Projektwerte einträgst.
+Die Einrichtung hat zwei Teile. **Der Betreiber der App richtet die Cloud einmalig ein.** Danach brauchen Nutzer weder ein Supabase-Konto noch Projektwerte oder API-Schlüssel: Sie erstellen einfach ein HabitFlow-Konto und verwenden dieselbe E-Mail und dasselbe Passwort auf ihren Geräten.
+
+### Einmalige Einrichtung durch den App-Betreiber
 
 1. Erstelle ein Supabase-Projekt und öffne **Project Settings → API**.
-2. Kopiere die Projekt-URL sowie den öffentlichen `anon`/publishable Key.
-3. Trage beide Werte in `supabase-config.js` ein:
+2. Kopiere die **Project URL** und den öffentlichen **anon/publishable Key**.
+3. Setze sie in `supabase-config.js` ein:
 
    ```js
    window.HABITFLOW_SUPABASE_CONFIG = Object.freeze({
@@ -43,13 +45,21 @@ Die App enthält keine erfundenen Zugangsdaten. Cloud-Synchronisierung bleibt de
    });
    ```
 
-4. Öffne den **SQL Editor** in Supabase und führe `supabase/schema.sql` vollständig aus. Das Schema erstellt `public.habits`, aktiviert Row Level Security, gewährt Datenbankrechte nur für `authenticated` und legt Policies an, die jede Zeile auf `auth.uid() = user_id` beschränken.
-5. Stelle unter **Authentication → Providers** sicher, dass E-Mail/Passwort-Anmeldung aktiviert ist. Wenn E-Mail-Bestätigung aktiviert ist, muss die Person den Bestätigungslink öffnen, bevor sie sich anmelden kann.
-6. Trage deine HTTPS-App-Adresse unter **Authentication → URL Configuration** als Site URL ein und ergänze sie bei den Redirect URLs. Für lokales Testen verwende zusätzlich `http://localhost:8000/**`.
-7. Lade die Dateien auf einen HTTPS-Host hoch. Für GitHub Pages muss die Pages-Veröffentlichung auf den richtigen Branch und Ordner zeigen.
-8. Öffne die App online, gehe zu **Einstellungen → Cloud-Synchronisierung** und registriere ein Konto oder melde dich an.
+4. Führe `supabase/schema.sql` vollständig im Supabase **SQL Editor** aus. Es legt die Tabelle an und beschränkt Daten mit Row Level Security auf das jeweilige Konto.
+5. Aktiviere unter **Authentication → Providers** die E-Mail/Passwort-Anmeldung. Entscheide dort, ob neue Konten ihre E-Mail erst bestätigen müssen.
+6. Trage unter **Authentication → URL Configuration** die HTTPS-Adresse der veröffentlichten App als **Site URL** und erlaubte **Redirect URL** ein. Für lokales Testen ergänze `http://localhost:8000/**`.
+7. Veröffentliche die App erneut über HTTPS. Auf GitHub Pages muss der veröffentlichte Branch/Ordner die konfigurierte `supabase-config.js` enthalten.
 
-**Sicherheit:** Im Browser darf ausschließlich der öffentliche `anon` Key stehen. Den `service_role` Key niemals in `supabase-config.js`, GitHub Pages, HTML, JavaScript oder einem anderen Client ausliefern. Der anon Key ist kein Ersatz für RLS; führe das SQL-Schema aus und prüfe die Policies im Supabase Dashboard.
+Die Datei enthält absichtlich keine Zugangsdaten. Im Browser darf nur der öffentliche `anon`/publishable Key stehen. **Den `service_role` Key niemals veröffentlichen oder in die App eintragen.** Der Schutz der Daten beruht zusätzlich auf den RLS-Regeln im Schema.
+
+### Für Nutzer
+
+1. Öffne die veröffentlichte HabitFlow-App und gehe zu **Einstellungen → Dein HabitFlow-Konto**.
+2. Gib E-Mail und ein Passwort ein und wähle **Konto erstellen**. Falls E-Mail-Bestätigung aktiviert ist, bestätige zuerst den Link aus der E-Mail.
+3. Erlaube beim ersten Login auf einem Gerät den Import vorhandener lokaler Habits, wenn du sie mit diesem Konto zusammenführen möchtest. Lehnst du ab, bleiben sie lokal auf diesem Gerät.
+4. Melde dich auf weiteren Geräten mit **demselben HabitFlow-Konto** an. Die Habits werden automatisch synchronisiert; bei Konflikten gewinnt die jeweils neuere Änderung.
+
+Wenn der Hinweis in den Einstellungen sagt, dass die Cloud noch nicht eingerichtet wurde, muss sich der App-Betreiber darum kümmern. Nutzer können diesen Schritt nicht durch ein eigenes Supabase-Konto ersetzen.
 
 ### Synchronisierung und Konflikte
 
@@ -62,13 +72,9 @@ Die App enthält keine erfundenen Zugangsdaten. Cloud-Synchronisierung bleibt de
 - Löschungen sind synchronisierte Tombstones. Sie werden nicht sofort aus der Cloud entfernt, damit ein älteres Gerät eine gelöschte Habit nicht ungewollt wiederherstellt.
 - Der Status in der Kopfzeile zeigt lokal, offline, synchronisiert oder einen Fehler an.
 
-### Manuell erforderlich
+### Noch manuell zu prüfen
 
-- Ein Supabase-Projekt erstellen und die echte URL sowie den öffentlichen anon Key in `supabase-config.js` eintragen.
-- `supabase/schema.sql` im SQL Editor ausführen.
-- E-Mail-Provider und erlaubte App-/Redirect-URLs konfigurieren.
-- Die veröffentlichte App nach dem Eintragen der Konfiguration erneut deployen.
-- Cloud-Registrierung, Anmeldung, Synchronisierung zwischen zwei Geräten und Realtime-Änderungen mit echten Testkonten prüfen.
+Ohne echte Projektwerte kann die Cloud-Verbindung nicht live getestet werden. Der Betreiber muss die oben beschriebene Supabase-Einrichtung abschließen und anschließend Registrierung, E-Mail-Bestätigung (falls aktiviert), Synchronisierung auf zwei Geräten und Realtime-Änderungen mit Testkonten prüfen.
 
 ## Daten & Backups
 
@@ -86,3 +92,4 @@ Die App enthält keine erfundenen Zugangsdaten. Cloud-Synchronisierung bleibt de
 - `supabase-config.js` – Platzhalter für Projekt-URL und öffentlichen Key
 - `supabase/schema.sql` – Tabelle, Rechte, RLS und Realtime-Veröffentlichung
 - `sw.js` – Offline-Cache und Cache-Version
+
