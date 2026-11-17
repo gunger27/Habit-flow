@@ -48,11 +48,19 @@
 .sync-settings-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .sync-settings-heading h3{margin:0;font-size:16px}
 .auth-state{font-size:11px;color:var(--muted);text-align:right}
+.auth-state[data-state="signed-in"]{color:var(--green);font-weight:700}
+.auth-state[data-state="pending"]{color:var(--orange);font-weight:700}
 .auth-form{margin-top:9px}
 .auth-form label{margin-top:12px}
+.auth-form .field-hint{display:block;margin-top:7px;line-height:1.45}
 .auth-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
 .auth-actions button{min-height:40px}
 .auth-form button:disabled,.auth-form input:disabled{opacity:.65;cursor:not-allowed}
+.auth-message{margin:13px 0 0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.auth-message[hidden]{display:none}
+.auth-message.error{border-color:color-mix(in srgb,var(--red) 65%,var(--line));background:color-mix(in srgb,var(--red) 12%,var(--surface));color:var(--red)}
+.auth-message.success{border-color:color-mix(in srgb,var(--green) 65%,var(--line));background:color-mix(in srgb,var(--green) 12%,var(--surface));color:var(--green)}
+.auth-message.info{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
 @media(max-width:650px){
   .save-indicator{font-size:0;gap:0;max-width:20px}
   .save-indicator i{width:9px;height:9px}
@@ -68,3 +76,4 @@
   .year-month{grid-template-rows:repeat(7,9px);gap:2px}
 }
 @media(prefers-reduced-motion:reduce){.save-indicator[data-state="syncing"] i{animation:none}}
+
