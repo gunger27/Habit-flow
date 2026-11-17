@@ -91,6 +91,7 @@ Ohne echte Projektwerte kann die Cloud-Verbindung nicht live getestet werden. De
 - `styles.css`, `feature.css` – Layout, Darstellung und mobile Bedienung
 - `app.js` – IndexedDB, App-Logik, Authentifizierung, Synchronisierung, Kalender und Statistiken
 - `sync-core.js` – deterministische Konfliktauflösung
+- `auth-core.js` – Passwortprüfung und verständliche Authentifizierungsmeldungen
 - `supabase-config.js` – Platzhalter für Projekt-URL und öffentlichen Key
 - `supabase/schema.sql` – Tabelle, Rechte, RLS und Realtime-Veröffentlichung
 - `sw.js` – Offline-Cache und Cache-Version
