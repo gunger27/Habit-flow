@@ -124,10 +124,10 @@
 
   <dialog id="settingsDialog" class="modal">
     <div class="modal-heading"><div><p class="eyebrow">DEINE DATEN</p><h2>Backup & Einstellungen</h2></div><button class="close-button" data-close="settingsDialog">×</button></div>
-    <p class="settings-copy">Deine Habits werden zuerst lokal gespeichert. Mit einem Konto kannst du sie zusätzlich über Supabase zwischen Geräten synchronisieren.</p>
+    <p class="settings-copy">Deine Habits werden zuerst auf diesem Gerät gespeichert. Melde dich mit demselben HabitFlow-Konto auf deinen Geräten an, um sie automatisch zu synchronisieren. Ein eigenes Supabase-Konto oder einen API-Schlüssel brauchst du dafür nicht.</p>
     <section class="sync-settings" aria-labelledby="syncHeading">
-      <div class="sync-settings-heading"><div><p class="eyebrow">OPTIONAL</p><h3 id="syncHeading">Cloud-Synchronisierung</h3></div><span id="authState" class="auth-state">Nicht angemeldet</span></div>
-      <p id="syncHelp" class="field-hint">Für die Synchronisierung müssen die Supabase-Projektwerte in supabase-config.js eingerichtet sein.</p>
+      <div class="sync-settings-heading"><div><p class="eyebrow">AUF ALLEN GERÄTEN GLEICH ANMELDEN</p><h3 id="syncHeading">Dein HabitFlow-Konto</h3></div><span id="authState" class="auth-state">Nicht angemeldet</span></div>
+      <p id="syncHelp" class="field-hint">Erstelle ein HabitFlow-Konto oder melde dich an. Die einmalige Cloud-Einrichtung übernimmt der Betreiber der App.</p>
       <form id="authForm" class="auth-form">
         <label for="authEmail">E-Mail</label>
         <input id="authEmail" class="text-input" type="email" autocomplete="email" required>
@@ -152,3 +152,4 @@
   <script src="./app.js"></script>
 </body>
 </html>
+
