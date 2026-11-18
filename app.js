@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 12900)
-Total output lines: 581
-
 'use strict';
 
 const DB_NAME = 'habitflow-db';
@@ -97,8 +94,7 @@ function currentStreak(h) {
 function longestStreak(h) { let best = 0, run = 0; for (const d of scheduledDates(h)) { if (completed(h, d)) { run++; best = Math.max(best, run); } else run = 0; } return best; }
 function rate(h, from = null) { const dates = scheduledDates(h); const selected = from ? dates.filter(d => d >= from) : dates; const done = selected.filter(d => completed(h, d)).length; return { done, total: selected.length, percent: selected.length ? Math.round(done / selected.length * 100) : 0 }; }
 function measurementEntries(h, from = null, to = today()) {
-  return Object.entries(h.completions || {}).flatMap(([date, event]) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || event?.deleted || typeof event?.value !== 'number' || !Number.isFinite(event.value) || event.value < 0) return [];
+  return Object.entries(h.completions || {}).flatMap(([date, event]) => {    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || event?.deleted || typeof event?.value !== 'number' || !Number.isFinite(event.value) || event.value < 0) return [];
     const day = parseKey(date);
     return planned(h, day) && day <= to && (!from || day >= from) ? [{ date, value: event.value, note: event.note || '', event }] : [];
   }).sort((a, b) => a.date.localeCompare(b.date));
@@ -197,8 +193,7 @@ async function toggleCompletion(id, dateKey) {
   const d = parseKey(dateKey); if (!planned(h, d) || d > today()) return;
   const wasDone = completed(h, d), updatedAt = new Date().toISOString();
   const completions = { ...h.completions, [dateKey]: { done: !wasDone, updatedAt } };
-  await persistHabit({ ...h, completions });
-}
+  await persistHabit({ ...h, completions });}
 async function saveQuantity(id, dateKey, valueText, noteText = '') {
   const h = state.habits.find(item => item.id === id);
   if (!h || h.trackingType !== 'quantity') return;
@@ -297,8 +292,7 @@ function renderYear() {
   const grid = yTicks.map(value => `<line x1="${left}" y1="${yFor(value)}" x2="${right}" y2="${yFor(value)}" class="chart-gridline"/><text x="${left - 8}" y="${yFor(value) + 4}" text-anchor="end" class="chart-label">${formatQuantity(value)}</text>`).join('');
   const points = entries.map(entry => `${xFor(entry.date).toFixed(1)},${yFor(entry.value).toFixed(1)}`).join(' ');
   const line = entries.length > 1 ? `<polyline points="${points}" class="chart-line"/>` : '';
-  const circles = entries.map(entry => `<circle cx="${xFor(entry.date).toFixed(1)}" cy="${yFor(entry.value).toFixed(1)}" r="4" class="chart-point"><title>${fmtDate(parseKey(entry.date))}: ${formatQuantity(entry.value)} ${escapeHTML(habit.unit)}${entry.note ? ` · ${escapeHTML(entry.note)}` : ''}</title></circle>`).join('');
-  const target = habit.dailyTarget ? `<line x1="${left}" y1="${yFor(habit.dailyTarget)}" x2="${right}" y2="${yFor(habit.dailyTarget)}" class="chart-target"/><text x="${right}" y="${yFor(habit.dailyTarget) - 5}" text-anchor="end" class="chart-target-label">Ziel ${formatQuantity(habit.dailyTarget)}</text>` : '';
+  const circles = entries.map(entry => `<circle cx="${xFor(entry.date).toFixed(1)}" cy="${yFor(entry.value).toFixed(1)}" r="4" class="chart-point"><title>${fmtDate(parseKey(entry.date))}: ${formatQuantity(entry.value)} ${escapeHTML(habit.unit)}${entry.note ? ` · ${escapeHTML(entry.note)}` : ''}</title></circle>`).join('');  const target = habit.dailyTarget ? `<line x1="${left}" y1="${yFor(habit.dailyTarget)}" x2="${right}" y2="${yFor(habit.dailyTarget)}" class="chart-target"/><text x="${right}" y="${yFor(habit.dailyTarget) - 5}" text-anchor="end" class="chart-target-label">Ziel ${formatQuantity(habit.dailyTarget)}</text>` : '';
   const dateTicks = [start, addDays(start, Math.floor((period - 1) / 2)), end].map(date => `<text x="${left + (dayDiff(date, start) / (period - 1 || 1)) * plotWidth}" y="${bottom + 23}" text-anchor="middle" class="chart-label">${new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(date)}</text>`).join('');
   $('quantityChart').innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="quantityChartTitle quantityChartDesc"><title id="quantityChartTitle">${escapeHTML(habit.name)}: Mengenverlauf</title><desc id="quantityChartDesc">Tageswerte in ${escapeHTML(habit.unit)} für die letzten ${period} Tage. Die Tabelle darunter enthält alle eingetragenen Werte.</desc>${grid}${target}<line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" class="chart-axis"/><line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" class="chart-axis"/>${line}${circles}${dateTicks}</svg>${entries.length ? '' : '<p class="muted">In diesem Zeitraum wurden noch keine Mengen eingetragen.</p>'}`;
   $('quantityDataTable').innerHTML = entries.length
@@ -397,8 +391,7 @@ async function syncNow() {
       const imported = guestRecords.filter(h => decisions[h.id] === 'import').map(h => ({ ...h, localOwner: syncUser.id }));
       unclaimedGuest = guestRecords.filter(h => decisions[h.id] !== 'import');
       currentLocal = [...currentLocal, ...imported];
-    }
-    const remote = (remoteRows || []).map(rowToHabit);
+    }    const remote = (remoteRows || []).map(rowToHabit);
     if (!initialized && !currentLocal.length && remote.length) {
       const downloaded = remote.map(h => ({ ...h, localOwner: syncUser.id }));
       if (state.user?.id !== syncUser.id) return;
@@ -497,8 +490,7 @@ async function signOut() {
 }
 async function initCloud() {
   const config = window.HABITFLOW_SUPABASE_CONFIG || {};
-  if (!config.url || !config.anonKey) { cloud = null; setSyncStatus('setup'); renderAuthState(); return; }
-  if (!window.supabase?.createClient) {
+  if (!config.url || !config.anonKey) { cloud = null; setSyncStatus('setup'); renderAuthState(); return; }  if (!window.supabase?.createClient) {
     if (!navigator.onLine) { setSyncStatus('offline', 'Supabase-Bibliothek offline nicht verfügbar · lokal gespeichert'); renderAuthState(); return; }
     if (!supabaseLoadPromise) supabaseLoadPromise = new Promise(resolve => {
       const script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
@@ -541,4 +533,3 @@ async function init() {
 }
 if ('serviceWorker' in navigator && location.protocol !== 'file:') window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 init();
-
