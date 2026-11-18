@@ -5,6 +5,8 @@ HabitFlow ist eine installierbare, offlinefähige Habit-Tracker-Web-App. Die App
 ## Funktionen
 
 - Habits erstellen, bearbeiten und löschen
+- Checkbox-Habits oder messbare Habits mit Tageswert, Einheit und optionalem Ziel
+- Verlaufsgrafik für 30, 90 oder 365 Tage mit Summe, Durchschnitt und Bestwert
 - Intervalle von 1 bis 365 Tagen mit Startdatum als Rhythmusanker
 - Wochenübersicht mit gut bedienbaren Abhakflächen
 - Gemeinsamer Monatskalender mit Tageszahlen für erledigte, offene und geplante Habits
@@ -45,12 +47,12 @@ Die Einrichtung hat zwei Teile. **Der Betreiber der App richtet die Cloud einmal
    });
    ```
 
-4. Führe `supabase/schema.sql` vollständig im Supabase **SQL Editor** aus. Es legt die Tabelle an und beschränkt Daten mit Row Level Security auf das jeweilige Konto.
+4. Bei einem neuen Projekt führe `supabase/schema.sql` vollständig im Supabase **SQL Editor** aus. Bei einem bereits eingerichteten Projekt führe stattdessen `supabase/migrations/20261117_quantity_habits.sql` aus, bevor du die neue App-Version veröffentlichst. Die Migration ist wiederholbar und lässt alte Habits als Checkbox-Habits bestehen.
 5. Aktiviere unter **Authentication → Providers** die E-Mail/Passwort-Anmeldung. Entscheide dort, ob neue Konten ihre E-Mail erst bestätigen müssen.
 6. Trage unter **Authentication → URL Configuration** die HTTPS-Adresse der veröffentlichten App als **Site URL** und erlaubte **Redirect URL** ein. Für lokales Testen ergänze `http://localhost:8000/**`.
 7. Veröffentliche die App erneut über HTTPS. Auf GitHub Pages muss der veröffentlichte Branch/Ordner die konfigurierte `supabase-config.js` enthalten.
 
-Die Datei enthält absichtlich keine Zugangsdaten. Im Browser darf nur der öffentliche `anon`/publishable Key stehen. **Den `service_role` Key niemals veröffentlichen oder in die App eintragen.** Der Schutz der Daten beruht zusätzlich auf den RLS-Regeln im Schema.
+`supabase-config.js` enthält nur die öffentliche Projekt-URL und den für Browser vorgesehenen `anon`/publishable Key. **Den `service_role`- oder einen `sb_secret_`-Key niemals veröffentlichen oder in die App eintragen.** Der Schutz der Daten beruht zusätzlich auf den RLS-Regeln im Schema.
 
 ### Für Nutzer
 
@@ -70,13 +72,23 @@ Wenn der Hinweis in den Einstellungen sagt, dass die Cloud noch nicht eingericht
 - Beim ersten Login fragt HabitFlow, ob lokale Habits ohne Konto-Zuordnung mit diesem Konto zusammengeführt werden sollen. Ablehnen lässt die lokalen Daten unverändert auf dem Gerät.
 - Habits verschiedener Geräte werden addiert. Bei gleicher Habit-ID gewinnt für Name, Intervall, Startdatum und Löschstatus die neueste Habit-Änderung.
 - Erledigt-/Offen-Markierungen werden pro Datum separat versioniert. Dadurch kann auch das Zurücknehmen eines Hakens synchronisiert werden.
+- Messwerte und optionale Tagesnotizen werden ebenfalls pro Datum mit Zeitstempel gespeichert. Die Daten liegen weiter im JSONB-Feld `completions`; neue SQL-Spalten speichern Art, Einheit und Ziel eines Habits.
+- Die Datenbank schützt Messwerte vor Schreibvorgängen älterer App-Versionen, die Mengen-Habits noch nicht kennen.
 - Haben zwei Änderungen denselben Zeitstempel, entscheidet eine feste Regel auf allen Geräten gleich; bei einem Gleichstand der Tagesmarkierung gewinnt „offen“, beim Löschstatus die Löschung.
 - Löschungen sind synchronisierte Tombstones. Sie werden nicht sofort aus der Cloud entfernt, damit ein älteres Gerät eine gelöschte Habit nicht ungewollt wiederherstellt.
 - Der Status in der Kopfzeile zeigt lokal, offline, synchronisiert oder einen Fehler an.
 
+## Mengen-Habits
+
+Beim Erstellen eines Habits kann zwischen **Einfach abhaken** und **Menge erfassen** gewählt werden. Messbare Habits benötigen eine Einheit, zum Beispiel Wiederholungen, km oder Seiten. Ein Tagesziel ist optional. Ohne Ziel zählt ein eingetragener Wert über 0 als erledigt; mit Ziel zählt der Tag ab dem Zielwert als erledigt. Teilwerte und der Wert 0 bleiben als Messung sichtbar, zählen aber ohne Ziel nicht als erledigt.
+
+Die Eingabe ist für geplante Tage in der Wochenansicht und im Kalender-Tagesdetail möglich. Tagesnotizen sind optional. Die Verlaufsgrafik zeigt 30, 90 oder 365 zurückliegende Tage. Summe, Durchschnitt und Bestwert berücksichtigen nur geplante Tage mit einem eingetragenen Zahlenwert; ein eingetragener Wert 0 zählt mit, fehlende Werte zählen nicht als 0. Das Jahr ist ein rollierender Zeitraum der letzten 365 Tage.
+
+Backups werden mit Schema-Version 2 exportiert. Version-1-Backups mit Checkbox-Habits können weiterhin importiert werden; nicht angegebene Messoptionen werden als einfache Checkbox-Habits behandelt.
+
 ### Noch manuell zu prüfen
 
-Ohne echte Projektwerte kann die Cloud-Verbindung nicht live getestet werden. Der Betreiber muss die oben beschriebene Supabase-Einrichtung abschließen und anschließend Registrierung, E-Mail-Bestätigung (falls aktiviert), Synchronisierung auf zwei Geräten und Realtime-Änderungen mit Testkonten prüfen.
+Automatisierte Tests ersetzen keine Live-Prüfung mit dem Supabase-Projekt. Nach dem Ausführen der Migration muss der Betreiber Registrierung, E-Mail-Bestätigung (falls aktiviert), Synchronisierung auf zwei Geräten und Realtime-Änderungen mit Testkonten prüfen.
 
 ## Daten & Backups
 
@@ -92,7 +104,8 @@ Ohne echte Projektwerte kann die Cloud-Verbindung nicht live getestet werden. De
 - `app.js` – IndexedDB, App-Logik, Authentifizierung, Synchronisierung, Kalender und Statistiken
 - `sync-core.js` – deterministische Konfliktauflösung
 - `auth-core.js` – Passwortprüfung und verständliche Authentifizierungsmeldungen
-- `supabase-config.js` – Platzhalter für Projekt-URL und öffentlichen Key
-- `supabase/schema.sql` – Tabelle, Rechte, RLS und Realtime-Veröffentlichung
+- `supabase-config.js` – öffentliche Browser-Konfiguration (niemals einen Secret- oder Service-Role-Key eintragen)
+- `supabase/schema.sql` – Tabelle, Mess-Habit-Felder, Rechte, RLS und Realtime
+- `supabase/migrations/20261117_quantity_habits.sql` – sichere Migration bestehender Supabase-Projekte
 - `sw.js` – Offline-Cache und Cache-Version
 
