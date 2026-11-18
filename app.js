@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 12900)
-Total output lines: 581
-
 'use strict';
 
 const DB_NAME = 'habitflow-db';
@@ -281,7 +278,31 @@ function renderYear() {
     const wrap = document.createElement('div'); wrap.className = 'year-month-wrap';
     wrap.innerHTML = `<div class="year-month-label">${monthNames[m]}</div>`;
     const cells = document.createElement('div'); cells.className = 'year-month';
-  …900 tokens truncated…bit = state.habits.find(item => item.id === state.quantityHabitId);
+    const first = new Date(year, m, 1, 12), offset = (first.getDay() + 6) % 7;
+    for (let i = 0; i < offset; i++) { const e = document.createElement('i'); e.className = 'year-cell spacer'; cells.appendChild(e); }
+    const len = new Date(year, m + 1, 0).getDate();
+    for (let n = 1; n <= len; n++) {
+      const d = new Date(year, m, n, 12), totals = dayTotals(d), e = document.createElement('i'); e.className = 'year-cell';
+      if (d > today()) e.classList.add('future');
+      else if (!totals.planned) e.classList.add('inactive');
+      else if (totals.done === 0) e.classList.add('missed');
+      else e.classList.add(`level-${Math.min(4, Math.ceil((totals.done / totals.planned) * 4))}`);
+      e.title = `${key(d)} · ${totals.done} erledigt · ${totals.open} offen · ${totals.planned} geplant`;
+      cells.appendChild(e);
+    }
+    wrap.appendChild(cells); grid.appendChild(wrap);
+  }
+}
+function renderStats() {
+  const habits = state.habits, all = habits.reduce((a, h) => { const r = rate(h); a.done += r.done; a.total += r.total; return a; }, { done: 0, total: 0 });
+  const pct = all.total ? Math.round(all.done / all.total * 100) : 0, longest = habits.reduce((m, h) => Math.max(m, longestStreak(h)), 0);
+  $('statsOverview').innerHTML = `<div class="stat-tile"><span class="stat-label">Gesamte Erfüllungsquote</span><strong>${pct}%</strong></div><div class="stat-tile"><span class="stat-label">Erledigte Einheiten</span><strong>${all.done}</strong></div><div class="stat-tile"><span class="stat-label">Längste Streak</span><strong>${longest}</strong></div>`;
+  const list = $('statsList'); list.innerHTML = '';
+  if (!habits.length) { list.innerHTML = '<p class="muted">Noch keine Daten. Füge ein Habit hinzu.</p>'; return; }
+  habits.forEach(h => { const r = rate(h), row = document.createElement('div'); row.className = 'stats-row'; row.innerHTML = `<div class="stats-habit">${escapeHTML(h.name)}<div class="muted small">Aktuell: ${currentStreak(h)} · Rekord: ${longestStreak(h)}</div></div><div class="progress-track"><div class="progress-fill" style="width:${r.percent}%"></div></div><div class="stats-number">${r.percent}%</div><div class="stats-number">${r.done}/${r.total}</div>`; list.appendChild(row); });
+}
+function renderQuantityChart() {
+  const habit = state.habits.find(item => item.id === state.quantityHabitId);
   if (!habit) return;
   const period = [30, 90, 365].includes(state.quantityPeriod) ? state.quantityPeriod : 30;
   const end = today(), start = addDays(end, -(period - 1)), entries = measurementEntries(habit, start, end);
